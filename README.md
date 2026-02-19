@@ -1,4 +1,4 @@
-# Pfleiderer Model Training - Azure Functions
+# Model Training - Azure Functions
 
 A serverless Azure Functions application for automated machine learning model training, designed to train and manage multiple classification models on a monthly schedule.
 
@@ -35,7 +35,7 @@ The application runs on a scheduled basis (monthly) and can also be triggered on
 ## Project Structure
 
 ```
-pfleiderer-fa-model-training/
+invoice-model-training/
 ├── src/
 │   ├── function_app.py          # Azure Functions entry point
 │   ├── host.json                # Functions host configuration
@@ -107,7 +107,7 @@ SLACK_TOKEN=<slack-bot-token>
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd pfleiderer-fa-model-training
+   cd invoice-model-training
    ```
 
 2. **Create `.env` file** with required environment variables

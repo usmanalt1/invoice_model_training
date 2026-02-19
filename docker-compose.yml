@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pfleiderer-postgres-2
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pfleiderer
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pfl-shared-network
+    restart: always
+  azure-function-app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: pfl-fa-model-training
+    container_name: model-training-function-app
+    platform: linux/amd64
+    ports:
+      - 7071:80
+    env_file:
+      - .env
+    environment:
+      - AzureWebJobsStorage=DefaultEndpointsProtocol=http;AccountName=functionapp;AccountKey=cGFzc3dvcmQx;BlobEndpoint=http://azurite:10000/functionapp;
+      - AzureWebJobsScriptRoot=/home/site/wwwroot
+      - AzureFunctionsJobHost__Logging__Console__IsEnabled=true
+      - POSTGRES_CONN_STR=postgresql://postgres:postgres@postgres:5432/pfleiderer
+      - ENVIRONMENT=LOCAL
+      - UAMI_CLIENT_ID=local-dev
+      - EMAIL_STORAGE_ACCOUNT_NAME=pflemaildatalocaluks001
+      - EMAIL_STORAGE_ACCOUNT_KEY=cGFzc3dvcmQx
+      - EMAIL_STORAGE_ACCOUNT_URL=http://azurite:10000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - azurite
+    volumes:
+      - ./src:/home/site/wwwroot
+    networks:
+      - pfl-shared-network
+
+
+  azurite:
+    container_name: storage-container-2
+    image: mcr.microsoft.com/azure-storage/azurite
+    restart: always
+    environment:
+        # Create multiple Storage Accounts
+        # Issues defining AZURITE_ACCOUNTS across multiple lines
+        AZURITE_ACCOUNTS: pflsapimportlocaluks001:cGFzc3dvcmQx;pflemaildatalocaluks001:cGFzc3dvcmQx;pflxmloutlocaluks001:cGFzc3dvcmQx;functionapp:cGFzc3dvcmQx
+    ports:
+        - 10000:10000
+        - 10001:10001
+        - 10002:10002
+    volumes:
+        - ./volumes/azurite_data:/data
+    networks:
+      - pfl-shared-network
+
+networks:
+  pfl-shared-network:
+    name: pfl-shared-network

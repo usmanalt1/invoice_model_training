@@ -1,0 +1,49 @@
+definitions:
+    steps:
+    customPipelineWithRunnerStep:
+        - step: &preflight-checks
+            name: Preflight checks
+            image: python:3.7.2
+            script:
+                - echo 'Preflight checks'
+
+        - step: &deploy-image-to-acr
+            name: Docker Build and Push Image to ACR
+            image: atlassian/default-image:4
+            script:
+              - |
+                if [ "$BITBUCKET_BRANCH" = "main" ]; then
+                  ACR_NAME="pflacrproduks001"
+                elif [ "$BITBUCKET_BRANCH" = "staging" ]; then
+                  ACR_NAME="pflacrstguks001"
+                elif [ "$BITBUCKET_BRANCH" = "develop" ]; then
+                  ACR_NAME="pflacrdevuks001"
+                else
+                  echo "Branch not recognized for ACR deployment. Exiting."
+                  exit 1
+                fi
+              - apt-get update
+              - curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+              - az --version
+              - az login --service-principal -u $AZURE_CLIENT_ID -p="$AZURE_CLIENT_SECRET" -t $AZURE_TENANT_ID
+              - az account set -s $AZURE_SUBSCRIPTION_ID
+              - az acr login --name "$ACR_NAME.azurecr.io"
+              - docker build -t pfl-fa-model-train:latest --platform linux/amd64 .
+              - docker tag pfl-fa-model-train:latest "$ACR_NAME.azurecr.io/pfl-fa-model-train:latest"
+              - docker push "$ACR_NAME.azurecr.io/pfl-fa-model-train:latest"
+            services:
+              - docker
+
+pipelines:
+  default:
+    - step: *preflight-checks
+  branches:
+    develop:
+      - step: *preflight-checks
+      - step: *deploy-image-to-acr
+    staging:
+      - step: *preflight-checks
+      - step: *deploy-image-to-acr
+    main:
+      - step: *preflight-checks
+      - step: *deploy-image-to-acr
